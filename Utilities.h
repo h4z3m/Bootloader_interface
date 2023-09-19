@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #define DEBUG_PRINTLN(str)\
 do{\
-Serial.println( str );	\
+Serial.println(str );	\
 } while (0);\
 
 

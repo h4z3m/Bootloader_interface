@@ -1,50 +1,7 @@
 #pragma once
-#include "bl/inc/bl_cmd_types.h"
+#include "bl_cmd_types.h"
+#include "bl_utils.h"
 #include <memory>
-
-#define CRC32_POLY 0xEDB88320
-
-uint32_t crc32(const uint8_t* data, size_t length)
-{
-	uint32_t crc = 0xFFFFFFFF;
-
-	for (size_t i = 0; i < length; i++)
-	{
-		crc ^= data[i];
-
-		for (int j = 0; j < 8; j++)
-		{
-			crc = (crc >> 1) ^ ((crc & 1) * CRC32_POLY);
-		}
-	}
-
-	return ~crc;
-}
-
-uint32_t bl_calculate_command_crc(void* command, uint32_t size)
-{
-	const uint8_t* data = (const uint8_t*)command;
-	uint32_t crc = 0xFFFFFFFF;
-	uint32_t crc_offset = offsetof(BL_CommandHeader_t, CRC32);
-
-	// Calculate CRC for the command (excluding the CRC field)
-	for (uint32_t i = 0; i < size; i++)
-	{
-		if ((i < crc_offset) || (i >= crc_offset + sizeof(uint32_t)))
-		{
-			crc ^= data[i];
-
-			for (int j = 0; j < 8; j++)
-			{
-				crc = (crc >> 1) ^ ((crc & 1) * CRC32_POLY);
-			}
-		}
-		/*if (size % 50)
-			yield();*/
-	}
-
-	return ~crc;
-}
 
 class BootloaderCommand
 {
@@ -88,7 +45,7 @@ public:
 
 	BL_FLASH_ERASE_CMD_Builder& setPageNumber(uint32_t page_number)
 	{
-		cmd.data.page_number = page_number; // Set the page_number field
+		cmd.data.address = page_number; // Set the page_number field
 		return *this;
 	}
 
@@ -152,7 +109,7 @@ public:
 	{
 		memcpy(cmd.data.data_block, data, data_size);
 		cmd.data.data_len = data_size;
-		cmd.data.header.payload_size = sizeof(BL_DATA_PACKET_CMD) - 256 + data_size;
+		cmd.data.header.payload_size = sizeof(BL_DATA_PACKET_CMD) - BL_DATA_BLOCK_SIZE + data_size;
 		return *this;
 	}
 
@@ -164,7 +121,7 @@ public:
 		else
 			/* If there's a next block, calculate the whole packet size including data,
 			subtract size of pointer because we will send the array it points to not the pointer */
-			cmd.data.next_len = sizeof(BL_DATA_PACKET_CMD) - 256 + next_data_len;
+			cmd.data.next_len = sizeof(BL_DATA_PACKET_CMD) - BL_DATA_BLOCK_SIZE + next_data_len;
 
 		return *this;
 	}
@@ -184,7 +141,7 @@ class BL_MEM_READ_CMD_Builder : public BootloaderCommand
 public:
 	BL_MEM_READ_CMD_Builder()
 	{
-		cmd.data.header.payload_size = sizeof(BL_MEM_WRITE_CMD);
+		cmd.data.header.payload_size = sizeof(BL_MEM_READ_CMD);
 		cmd.data.header.cmd_id = BL_MEM_READ_CMD_ID;
 	}
 
